@@ -1,59 +1,124 @@
 <template>
-  <div class="hello" ref="chartdiv">
+  <div class="map-chart" id="chartdiv">
   </div>
 </template>
 
 <script>
 import * as am4core from '@amcharts/amcharts4/core';
-import * as am4charts from '@amcharts/amcharts4/charts';
-// eslint-disable-next-line camelcase
-import am4themes_animated from '@amcharts/amcharts4/themes/animated';
+import * as am4maps from '@amcharts/amcharts4/maps';
 
-am4core.useTheme(am4themes_animated);
+import am4themesAnimated from '@amcharts/amcharts4/themes/animated';
+import am4themesSpiritedaway from '@amcharts/amcharts4/themes/spiritedaway';
+import am4geodataWorldLow from '@amcharts/amcharts4-geodata/worldLow';
+import am4geodataDataCountries2 from '@amcharts/amcharts4-geodata/data/countries2';
 
 export default {
-  name: 'HelloWorld',
   mounted() {
-    const chart = am4core.create(this.$refs.chartdiv, am4charts.XYChart);
+    am4core.ready(() => {
+      // Themes begin
+      am4core.useTheme(am4themesSpiritedaway);
+      am4core.useTheme(am4themesAnimated);
+      // Themes end
 
-    chart.paddingRight = 20;
+      const continents = {
+        AF: 0,
+        AN: 1,
+        AS: 2,
+        EU: 3,
+        NA: 4,
+        OC: 5,
+        SA: 6,
+      };
 
-    const data = [];
-    let visits = 10;
-    for (let i = 1; i < 366; i += 1) {
-      visits += Math.round((Math.random() < 0.5 ? 1 : -1) * Math.random() * 10);
-      data.push({ date: new Date(2018, 0, i), name: `name${i}`, value: visits });
-    }
+      // Create map instance
+      const chart = am4core.create('chartdiv', am4maps.MapChart);
+      chart.projection = new am4maps.projections.Miller();
 
-    chart.data = data;
+      // Create map polygon series for world map
+      const worldSeries = chart.series.push(new am4maps.MapPolygonSeries());
+      worldSeries.useGeodata = true;
+      worldSeries.geodata = am4geodataWorldLow;
+      worldSeries.exclude = ['AQ'];
 
-    const dateAxis = chart.xAxes.push(new am4charts.DateAxis());
-    dateAxis.renderer.grid.template.location = 0;
+      const worldPolygon = worldSeries.mapPolygons.template;
+      worldPolygon.tooltipText = '{name}';
+      worldPolygon.nonScalingStroke = true;
+      worldPolygon.strokeOpacity = 0.5;
+      worldPolygon.fill = am4core.color('#eee');
+      worldPolygon.propertyFields.fill = 'color';
 
-    const valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
-    valueAxis.tooltip.disabled = true;
-    valueAxis.renderer.minWidth = 35;
+      let hs = worldPolygon.states.create('hover');
+      hs.properties.fill = chart.colors.getIndex(9);
 
-    const series = chart.series.push(new am4charts.LineSeries());
-    series.dataFields.dateX = 'date';
-    series.dataFields.valueY = 'value';
+      // Create country specific series (but hide it for now)
+      const countrySeries = chart.series.push(new am4maps.MapPolygonSeries());
+      countrySeries.useGeodata = true;
+      countrySeries.hide();
+      countrySeries.geodataSource.events.on('done', () => {
+        worldSeries.hide();
+        countrySeries.show();
+      });
 
-    series.tooltipText = '{valueY.value}';
-    chart.cursor = new am4charts.XYCursor();
+      const countryPolygon = countrySeries.mapPolygons.template;
+      countryPolygon.tooltipText = '{name}';
+      countryPolygon.nonScalingStroke = true;
+      countryPolygon.strokeOpacity = 0.5;
+      countryPolygon.fill = am4core.color('#eee');
 
-    const scrollbarX = new am4charts.XYChartScrollbar();
-    scrollbarX.series.push(series);
-    chart.scrollbarX = scrollbarX;
+      hs = countryPolygon.states.create('hover');
+      hs.properties.fill = chart.colors.getIndex(9);
 
-    this.chart = chart;
-  },
+      // Set up click events
+      worldPolygon.events.on('hit', (ev) => {
+        ev.target.series.chart.zoomToMapObject(ev.target);
+        const { map } = ev.target.dataItem.dataContext;
+        if (map) {
+          // eslint-disable-next-line no-param-reassign
+          ev.target.isHover = false;
+          countrySeries.geodataSource.url = `https://www.amcharts.com/lib/4/geodata/json/${map}.json`;
+          countrySeries.geodataSource.load();
+        }
+      });
 
-  beforeDestroy() {
-    if (this.chart) {
-      this.chart.dispose();
-    }
+      // Set up data for countries
+      const data = [];
+      // eslint-disable-next-line no-restricted-syntax
+      for (const id in am4geodataDataCountries2) {
+        // eslint-disable-next-line no-prototype-builtins
+        if (am4geodataDataCountries2.hasOwnProperty(id)) {
+          const country = am4geodataDataCountries2[id];
+          if (country.maps.length) {
+            data.push({
+              id,
+              color: chart.colors.getIndex(continents[country.continent_code]),
+              map: country.maps[0],
+            });
+          }
+        }
+      }
+      worldSeries.data = data;
+
+      // Zoom control
+      chart.zoomControl = new am4maps.ZoomControl();
+
+      const homeButton = new am4core.Button();
+      homeButton.events.on('hit', () => {
+        worldSeries.show();
+        countrySeries.hide();
+        chart.goHome();
+      });
+
+      homeButton.icon = new am4core.Sprite();
+      homeButton.padding(7, 5, 7, 5);
+      homeButton.width = 30;
+      homeButton.icon.path = 'M16,8 L14,8 L14,16 L10,16 L10,10 L6,10 L6,16 L2,16 L2,8 L0,8 L8,0 L16,8 Z M16,8';
+      homeButton.marginBottom = 10;
+      homeButton.parent = chart.zoomControl;
+      homeButton.insertBefore(chart.zoomControl.plusButton);
+    }); // end am4core.ready()
   },
 };
+
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->

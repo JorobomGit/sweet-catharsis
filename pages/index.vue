@@ -1,7 +1,9 @@
 <template>
   <div class="container">
     <div>
-      <MapChart />
+      <client-only placeholder="loading...">
+        <MapChart />
+      </client-only>
     </div>
   </div>
 </template>
