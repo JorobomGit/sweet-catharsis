@@ -1,10 +1,8 @@
 <template>
   <div class="container">
-    <div>
-      <client-only placeholder="loading...">
-        <MapChart />
-      </client-only>
-    </div>
+    <client-only placeholder="loading...">
+      <MapChart />
+    </client-only>
   </div>
 </template>
 

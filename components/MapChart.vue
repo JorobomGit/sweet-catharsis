@@ -1,5 +1,5 @@
 <template>
-  <div class="map-chart" id="chartdiv">
+  <div class="map-chart hello" id="chartdiv">
   </div>
 </template>
 
@@ -33,7 +33,12 @@ export default {
       // Create map instance
       const chart = am4core.create('chartdiv', am4maps.MapChart);
       chart.projection = new am4maps.projections.Miller();
-
+      chart.responsive.enabled = true;
+      chart.homeZoomLevel = 2;
+      chart.homeGeoPoint = {
+        latitude: 40,
+        longitude: -5,
+      };
       // Create map polygon series for world map
       const worldSeries = chart.series.push(new am4maps.MapPolygonSeries());
       worldSeries.useGeodata = true;
@@ -125,6 +130,6 @@ export default {
 <style scoped>
 .hello {
   width: 100%;
-  height: 500px;
+  height: 100vh;
 }
 </style>
